@@ -1,0 +1,15 @@
+{
+  "name": "hardcoded-url-detector-pro",
+  "version": "1.0.0",
+  "description": "Cyberpunk Hardcoded URL Detector — Enterprise security tool",
+  "scripts": {
+    "test":         "npx playwright test",
+    "test:headed":  "npx playwright test --headed",
+    "test:report":  "npx playwright show-report",
+    "serve":        "npx serve . --listen 5500"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "serve": "^14.2.3"
+  }
+}

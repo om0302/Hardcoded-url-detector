@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hardcoded URL Detector Pro — Cyberpunk</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+<div class="sky"></div>
+<div class="toast" id="toast"></div>
+
+<!-- ══ ADMIN MODALS (from modules/admin.html) ══ -->
+<div id="adminModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <h2 style="color:var(--neon-pink);font-family:Orbitron;margin-top:0;">🔐 Admin Login</h2>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="adminUser" placeholder="admin" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="adminPass" placeholder="••••••••" />
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn scan" onclick="doAdminLogin()">🔓 Login</button>
+      <button class="btn danger" onclick="closeAdminModal()">✕ Cancel</button>
+    </div>
+    <p style="font-size:10px;color:#5a9db5;margin-top:10px;">Default: admin / admin123</p>
+  </div>
+</div>
+
+<div id="adminPanel" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="width:680px;max-width:95vw;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <h2 style="color:var(--neon-pink);font-family:Orbitron;margin:0;">⚙️ Admin Dashboard</h2>
+      <button class="btn danger" onclick="closeAdminPanel()">✕ Close</button>
+    </div>
+    <div class="admin-stats-grid" id="adminStats"></div>
+    <h3 style="color:var(--neon-blue);font-family:Orbitron;font-size:13px;margin-top:18px;">📋 All Scan Records</h3>
+    <div id="adminHistoryTable"></div>
+    <h3 style="color:var(--neon-blue);font-family:Orbitron;font-size:13px;margin-top:18px;">✅ Whitelist Manager</h3>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="text" id="whitelistInput" placeholder="Enter domain to whitelist (e.g. example.com)" style="flex:1;padding:8px;border-radius:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:#d6f8ff;font-family:'Share Tech Mono';font-size:12px;outline:none;" />
+      <button class="btn" onclick="addWhitelist()">+ Add</button>
+    </div>
+    <div id="whitelistDisplay"></div>
+    <h3 style="color:var(--neon-blue);font-family:Orbitron;font-size:13px;margin-top:18px;">🔧 System Config</h3>
+    <div class="config-grid">
+      <label class="config-item"><span>Max History Entries</span><input type="number" id="cfgMaxHistory" value="15" min="5" max="100" /></label>
+      <label class="config-item"><span>Auto-scan on file drop</span><input type="checkbox" id="cfgAutoScan" checked /></label>
+      <label class="config-item"><span>Show risk score</span><input type="checkbox" id="cfgRisk" checked /></label>
+      <label class="config-item"><span>Dark Mode</span><input type="checkbox" id="cfgDark" checked onchange="toggleTheme()" /></label>
+    </div>
+    <button class="btn scan" style="margin-top:14px;" onclick="saveConfig()">💾 Save Config</button>
+    <button class="btn danger" style="margin-top:14px;margin-left:8px;" onclick="clearAllData()">🗑 Clear All Data</button>
+  </div>
+</div>
+
+<!-- ══ MAIN CONTAINER ══ -->
+<div class="container" id="mainContainer">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">CYB</div>
+    <div style="flex:1;">
+      <h1>🔎 Hardcoded URL Detector <span style="font-size:12px;color:var(--neon-pink);vertical-align:middle;">PRO</span></h1>
+      <p class="lead">Scan · Analyze · Risk-Score · Export — All 100% offline. Enterprise-grade security tool.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+      <button class="btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+      <button class="btn" onclick="openAdminModal()">🔐 Admin</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs" id="mainTabs">
+    <button class="tab-btn active" data-tab="scan"     onclick="switchTab('scan', this)">📂 Scan File</button>
+    <button class="tab-btn"        data-tab="paste"    onclick="switchTab('paste', this)">📋 Paste Code</button>
+    <button class="tab-btn"        data-tab="bulk"     onclick="switchTab('bulk', this)">📦 Bulk Scan</button>
+    <button class="tab-btn"        data-tab="analyzer" onclick="switchTab('analyzer', this)">🐍 AI Analyzer</button>
+    <button class="tab-btn"        data-tab="risk"     onclick="switchTab('risk', this)">🛡 Risk Report</button>
+    <button class="tab-btn"        data-tab="charts"   onclick="switchTab('charts', this)">📊 Charts</button>
+    <button class="tab-btn"        data-tab="history"  onclick="switchTab('history', this)">📜 History</button>
+    <button class="tab-btn"        data-tab="howto"    onclick="switchTab('howto', this)">ℹ️ How It Works</button>
+  </div>
+
+  <!-- ══ TAB 1 — SCAN FILE ══ -->
+  <div class="tab-panel active" id="tab-scan">
+    <div class="file-row">
+      <label class="file-display" id="fileDisplay" for="fileInput" aria-hasfile="false">
+        📁 No file selected
+        <span style="opacity:0.5;font-size:11px;">(drag &amp; drop or click)</span>
+      </label>
+      <div class="controls">
+        <label for="fileInput" class="btn">Choose File</label>
+        <button class="btn scan" id="scanBtn" onclick="doScan('file')">⚡ Scan</button>
+      </div>
+    </div>
+    <input type="file" id="fileInput" />
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+      <label style="color:#7ad3f5;font-size:11px;display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" id="chkIgnoreComments" /> Ignore commented lines
+      </label>
+      <label style="color:#7ad3f5;font-size:11px;display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" id="chkApplyWhitelist" checked /> Apply whitelist
+      </label>
+      <label style="color:#7ad3f5;font-size:11px;display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" id="chkShowRisk" checked /> Show risk scores
+      </label>
+    </div>
+  </div>
+
+  <!-- ══ TAB 2 — PASTE CODE ══ -->
+  <div class="tab-panel" id="tab-paste">
+    <textarea id="pasteArea" placeholder="Paste your code here and click Scan…"></textarea>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+      <button class="btn scan" id="pasteScanBtn" onclick="doScan('paste')">⚡ Scan Pasted Code</button>
+      <button class="btn danger" onclick="clearPaste()">🗑 Clear</button>
+    </div>
+  </div>
+
+  <!-- ══ TAB 3 — BULK SCAN ══ -->
+  <div class="tab-panel" id="tab-bulk">
+    <div class="how-card">
+      <h3>📦 Bulk File Scanner</h3>
+      <p>Select multiple files at once — all will be scanned and results merged into one report.</p>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <label for="bulkInput" class="btn">📂 Choose Multiple Files</label>
+      <button class="btn scan" id="bulkScanBtn" onclick="doBulkScan()">⚡ Scan All</button>
+      <button class="btn danger" onclick="clearBulk()">🗑 Clear</button>
+    </div>
+    <input type="file" id="bulkInput" multiple style="display:none;" onchange="updateBulkDisplay()" />
+    <div id="bulkFileList" style="margin-top:12px;"></div>
+    <div id="bulkProgress" style="display:none;margin-top:10px;">
+      <div style="font-size:12px;color:#7ad3f5;margin-bottom:6px;">Scanning files…</div>
+      <div class="scanner"><div class="beam"></div></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 4 — AI ANALYZER ══ -->
+  <div class="tab-panel" id="tab-analyzer">
+    <div class="how-card">
+      <h3>🐍 Advanced Code Analyzer</h3>
+      <p>Powered by pattern-matching engine. Detects env var suggestions, duplicates, suspicious tokens, and more.</p>
+    </div>
+    <div style="margin-top:14px;" id="analyzerContent">
+      <p style="color:#5a9db5;font-size:12px;text-align:center;">Run a scan first to see advanced analysis here.</p>
+    </div>
+  </div>
+
+  <!-- ══ TAB 5 — RISK REPORT ══ -->
+  <div class="tab-panel" id="tab-risk">
+    <div class="how-card">
+      <h3>🛡 Security Risk Assessment</h3>
+      <p>Each URL is scored for security risk based on: protocol (HTTP vs HTTPS), exposed tokens/keys, IP addresses, localhost references, and sensitive path patterns.</p>
+    </div>
+    <!-- Version Control Info -->
+    <div id="versionInfo" style="margin-top:10px;padding:10px;background:rgba(0,240,255,0.05);border:1px solid rgba(0,240,255,0.15);border-radius:8px;font-size:11px;color:#7ad3f5;display:none;">
+      <strong style="color:var(--neon-blue);">📋 Report Version:</strong>
+      <span id="reportVersion">—</span> &nbsp;|&nbsp;
+      <strong>Scan ID:</strong> <span id="reportScanId">—</span> &nbsp;|&nbsp;
+      <strong>Generated:</strong> <span id="reportTimestamp">—</span>
+    </div>
+    <div id="riskContent" style="margin-top:14px;">
+      <p style="color:#5a9db5;font-size:12px;text-align:center;">Run a scan first to see risk assessment here.</p>
+    </div>
+  </div>
+
+  <!-- ══ TAB 6 — CHARTS ══ -->
+  <div class="tab-panel" id="tab-charts">
+    <div class="how-card"><h3>📊 Visual Analytics</h3><p>Charts and graphs generated from your scan results.</p></div>
+    <div id="chartsContent" style="margin-top:14px;">
+      <p style="color:#5a9db5;font-size:12px;text-align:center;">Run a scan first to see charts here.</p>
+    </div>
+  </div>
+
+  <!-- ══ TAB 7 — HISTORY ══ -->
+  <div class="tab-panel" id="tab-history">
+    <div id="historyList"><p style="color:#5a9db5;font-size:12px;">No scans yet.</p></div>
+    <button class="btn danger" style="margin-top:10px;" onclick="clearHistory()">🗑 Clear History</button>
+  </div>
+
+  <!-- ══ TAB 8 — HOW IT WORKS ══ -->
+  <div class="tab-panel" id="tab-howto">
+    <div class="how-card">
+      <h3>What does this tool do?</h3>
+      <p>This tool detects <strong style="color:var(--neon-blue)">hardcoded URLs</strong> inside source code or config files. Hardcoded URLs are a security risk — they should be stored in environment variables or config files instead.</p>
+    </div>
+    <ul class="step-list">
+      <li><p><strong>Choose a file</strong> or paste code, or use Bulk Scan for multiple files.</p></li>
+      <li><p><strong>Click ⚡ Scan</strong> — every line is scanned with advanced regex patterns.</p></li>
+      <li><p><strong>Review results</strong> — line number, type badge (HTTP/HTTPS/Localhost/IP), risk score.</p></li>
+      <li><p><strong>AI Analyzer</strong> — get Python-grade analysis: duplicates, env-var suggestions, token detection.</p></li>
+      <li><p><strong>Risk Report</strong> — security risk scoring from LOW → CRITICAL for each URL.</p></li>
+      <li><p><strong>Charts</strong> — visual breakdown of URL types, risk distribution, domain frequency.</p></li>
+      <li><p><strong>Admin Panel</strong> — login as admin to manage history, whitelist domains, configure settings.</p></li>
+      <li><p><strong>Export</strong> — download as <code>.txt</code>, <code>.csv</code>, or <code>.json</code> report.</p></li>
+    </ul>
+    <div class="how-card" style="margin-top:10px;">
+      <h3>Supported File Types</h3>
+      <p>.js &nbsp; .py &nbsp; .java &nbsp; .cpp &nbsp; .c &nbsp; .json &nbsp; .yaml &nbsp; .yml &nbsp; .xml &nbsp; .html &nbsp; .txt &nbsp; .config &nbsp; .env &nbsp; .ts &nbsp; .go &nbsp; .rb &nbsp; .php &nbsp; and more</p>
+    </div>
+    <div class="how-card" style="margin-top:10px;">
+      <h3>Risk Score Legend</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="risk-badge critical">CRITICAL</span>
+        <span class="risk-badge high">HIGH</span>
+        <span class="risk-badge medium">MEDIUM</span>
+        <span class="risk-badge low">LOW</span>
+        <span class="risk-badge safe">SAFE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCANNER BEAM -->
+  <div class="scanner"><div class="beam"></div></div>
+
+  <!-- FILTER + SEARCH -->
+  <div id="filterSection" style="display:none;">
+    <div class="filter-row">
+      <span class="filter-label">Filter:</span>
+      <button class="chip active" data-filter="all"         onclick="applyFilter('all', this)">All</button>
+      <button class="chip"        data-filter="https"       onclick="applyFilter('https', this)">HTTPS</button>
+      <button class="chip"        data-filter="http"        onclick="applyFilter('http', this)">HTTP</button>
+      <button class="chip"        data-filter="localhost"   onclick="applyFilter('localhost', this)">Localhost</button>
+      <button class="chip"        data-filter="ip"          onclick="applyFilter('ip', this)">IP Address</button>
+      <button class="chip"        data-filter="critical"    onclick="applyFilter('critical', this)" style="color:var(--neon-red);">🔴 Critical</button>
+      <button class="chip"        data-filter="whitelisted" onclick="applyFilter('whitelisted', this)">✅ Whitelisted</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;">
+      <div class="search-wrap" style="flex:1;margin-top:0;">
+        <input type="text" id="searchBar" placeholder="Search URLs, domains, line numbers…" oninput="renderResults()" />
+      </div>
+      <select id="sortSelect" onchange="renderResults()" style="padding:8px 12px;border-radius:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:#d6f8ff;font-family:'Share Tech Mono';font-size:11px;outline:none;">
+        <option value="line">Sort: Line #</option>
+        <option value="risk">Sort: Risk ↓</option>
+        <option value="type">Sort: Type</option>
+        <option value="domain">Sort: Domain</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row" id="statsRow" style="display:none;">
+    <div class="stat-box"><span class="stat-num" id="statTotal">0</span><span class="stat-lbl">TOTAL URLs</span></div>
+    <div class="stat-box"><span class="stat-num" id="statHttps" style="color:var(--neon-green);">0</span><span class="stat-lbl">HTTPS</span></div>
+    <div class="stat-box"><span class="stat-num" id="statHttp" style="color:var(--neon-orange);">0</span><span class="stat-lbl">HTTP</span></div>
+    <div class="stat-box"><span class="stat-num" id="statLocal" style="color:var(--neon-blue);">0</span><span class="stat-lbl">LOCALHOST</span></div>
+    <div class="stat-box"><span class="stat-num" id="statIP" style="color:var(--neon-red);">0</span><span class="stat-lbl">IP ADDR</span></div>
+    <div class="stat-box"><span class="stat-num" id="statLines" style="color:#a8efff;">0</span><span class="stat-lbl">LINES SCANNED</span></div>
+    <div class="stat-box"><span class="stat-num" id="statCritical" style="color:var(--neon-red);">0</span><span class="stat-lbl">CRITICAL RISK</span></div>
+    <div class="stat-box"><span class="stat-num" id="statDupes" style="color:var(--neon-yellow);">0</span><span class="stat-lbl">DUPLICATES</span></div>
+  </div>
+
+  <!-- RESULTS AREA -->
+  <div class="results" id="results"></div>
+
+  <!-- EXPORT BAR -->
+  <div class="bottom-bar" id="bottomBar" style="display:none;">
+    <div class="meta" id="fileSize"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" onclick="exportTxt()">⬇ .txt</button>
+      <button class="btn" onclick="exportCSV()">⬇ .csv</button>
+      <button class="btn" onclick="exportJSON()">⬇ .json</button>
+      <button class="btn" onclick="exportHTML()">⬇ .html Report</button>
+      <button class="btn danger" onclick="clearResults()">🗑 Clear</button>
+    </div>
+  </div>
+
+  <div class="meta" style="margin-top:12px;display:flex;justify-content:space-between;">
+    <span>"Spot the link before it spots you."</span>
+    <span style="opacity:0.5;font-size:11px;">All processing is 100% local — no data sent to any server.</span>
+  </div>
+
+</div><!-- end .container -->
+
+<!-- ══ MODULE SCRIPTS ══ -->
+<script src="modules/core.js"></script>
+<script src="modules/scan-file.js"></script>
+<script src="modules/paste-code.js"></script>
+<script src="modules/bulk-scan.js"></script>
+<script src="modules/ai-analyzer.js"></script>
+<script src="modules/risk-report.js"></script>
+<script src="modules/charts.js"></script>
+<script src="modules/history.js"></script>
+<script src="modules/admin.js"></script>
+<script src="modules/export.js"></script>
+<script src="modules/version-control.js"></script>
+</body>
+</html>
